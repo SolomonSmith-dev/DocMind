@@ -1,6 +1,8 @@
 import structlog
 from fastapi import APIRouter, HTTPException, Request, UploadFile
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from docmind.core.ingest import ingest_pdf
 from docmind.core.retrieval import store_chunks
@@ -27,8 +29,12 @@ class DocumentInfo(BaseModel):
     uploaded_at: str
 
 
+limiter = Limiter(key_func=get_remote_address)
+
+
 @router.post("/upload", response_model=UploadResponse, status_code=201)
-async def upload_document(file: UploadFile, request: Request):
+@limiter.limit("10/minute")
+async def upload_document(request: Request, file: UploadFile):
     """Upload a PDF document for processing.
 
     The file goes through security validation (magic bytes, size, MIME type),

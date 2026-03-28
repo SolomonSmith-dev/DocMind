@@ -1,12 +1,15 @@
 import structlog
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from docmind.core.chat import generate_answer
 from docmind.core.retrieval import retrieve_chunks
 
 router = APIRouter()
 logger = structlog.get_logger()
+limiter = Limiter(key_func=get_remote_address)
 
 
 class AskRequest(BaseModel):
@@ -29,7 +32,8 @@ class AskResponse(BaseModel):
 
 
 @router.post("/ask", response_model=AskResponse)
-async def ask_question(body: AskRequest, request: Request):
+@limiter.limit("30/minute")
+async def ask_question(request: Request, body: AskRequest):
     """Ask a question about uploaded documents.
 
     Full RAG pipeline:

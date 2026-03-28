@@ -1,28 +1,100 @@
 # DocMind
 
-RAG-based document Q&A application. Upload PDFs, ask questions in natural language, get cited answers with source references.
+Intelligent document Q&A system built on Retrieval-Augmented Generation (RAG). Upload PDFs, ask questions in natural language, get cited answers grounded in your actual documents.
+
+Not a ChatGPT wrapper. A real pipeline: parsing, chunking, embedding, vector search, LLM synthesis with page-level citations and prompt injection defense.
 
 ## Architecture
 
-> Architecture diagram will be added before v1.0 ships.
+```
+                         ┌─────────────┐
+                         │   Client    │
+                         └──────┬──────┘
+                                │
+                         ┌──────▼──────┐
+                         │   FastAPI   │
+                         │  (uvicorn)  │
+                         └──┬───┬───┬──┘
+                            │   │   │
+              ┌─────────────┘   │   └─────────────┐
+              │                 │                 │
+     ┌────────▼─────┐  ┌───────▼───────┐  ┌──────▼──────┐
+     │   Upload +   │  │   Semantic    │  │     LLM     │
+     │  Ingestion   │  │    Search     │  │  Synthesis   │
+     │              │  │              │  │              │
+     │ • Validate   │  │ • Embed query│  │ • Build prompt│
+     │ • Extract    │  │ • ChromaDB   │  │ • Inject ctx │
+     │ • Chunk      │  │   top-k      │  │ • Call Ollama│
+     │ • Embed      │  │ • Score +    │  │ • Map cites  │
+     │ • Store      │  │   rank       │  │              │
+     └──────┬───────┘  └───────┬──────┘  └──────┬──────┘
+            │                  │                 │
+     ┌──────▼──────────────────▼─────────────────▼──────┐
+     │                    ChromaDB                       │
+     │           (vector store + metadata)               │
+     └───────────────────────────────────────────────────┘
+```
 
-**Components:**
-- **FastAPI Backend** — REST API for document upload and querying
-- **ChromaDB** — Vector database for document embeddings
-- **sentence-transformers** — Local embedding generation (all-MiniLM-L6-v2)
-- **Ollama** — Local LLM backend for answer generation
+## Features
+
+- **PDF Upload** with security validation (magic bytes, MIME check, size limit, filename sanitization, UUID storage)
+- **Intelligent Chunking** with configurable overlap, preferring paragraph/sentence boundaries
+- **Semantic Search** via sentence-transformers (all-MiniLM-L6-v2) + ChromaDB
+- **LLM Answer Synthesis** with page-level citations via Ollama
+- **Prompt Injection Defense** — document chunks are untrusted input, wrapped in delimiters with instruction pattern filtering
+- **Graceful Degradation** — returns raw chunks with citations when LLM is unavailable
+- **Structured JSON Logging** with request ID propagation
+- **Rate Limiting** on upload (10/min) and ask (30/min) endpoints
 
 ## Quick Start
 
 ```bash
+git clone https://github.com/SolomonSmith-dev/DocMind.git
+cd DocMind
 cp .env.example .env
 docker compose up --build
 ```
 
-- API: http://localhost:8000
-- Health check: http://localhost:8000/health
 - API docs (Swagger): http://localhost:8000/docs
+- Health check: http://localhost:8000/health
 - ChromaDB: http://localhost:8001
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/health` | Service status |
+| `POST` | `/api/upload` | Upload a PDF (multipart form) |
+| `GET` | `/api/documents` | List all uploaded documents |
+| `POST` | `/api/query` | Semantic search — returns ranked chunks with scores |
+| `POST` | `/api/ask` | Full Q&A — returns cited answer from LLM |
+
+### POST /api/upload
+
+```bash
+curl -X POST http://localhost:8000/api/upload \
+  -F "file=@document.pdf"
+```
+
+### POST /api/ask
+
+```bash
+curl -X POST http://localhost:8000/api/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What were the Q3 results?"}'
+```
+
+Response:
+```json
+{
+  "answer": "According to the document, Q3 revenue was $10M (page 5).",
+  "citations": [
+    {"page_number": 5, "source_filename": "report.pdf", "text_snippet": "Revenue was $10M..."}
+  ],
+  "model": "llama3.2",
+  "chunks_used": 3
+}
+```
 
 ## Development
 
@@ -30,33 +102,49 @@ docker compose up --build
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
-pytest -v
-ruff check src/ tests/
+
+# macOS requires libmagic for file type validation
+brew install libmagic
+
+pytest -v           # run tests (48 tests)
+ruff check src/     # lint
+ruff format src/    # format
 ```
 
 ## Tech Stack
 
 | Tool | Purpose |
 |---|---|
-| **FastAPI** | Async REST API framework |
-| **Pydantic v2** | Request/response validation |
-| **ChromaDB** | Vector database for semantic search |
-| **sentence-transformers** | Embedding generation |
-| **Ollama** | Local LLM inference |
-| **structlog** | Structured JSON logging |
-| **Docker Compose** | Container orchestration |
-| **GitHub Actions** | CI pipeline (lint + test + security audit) |
+| **FastAPI** | Async REST API with auto-generated Swagger docs |
+| **Pydantic v2** | Request/response validation on every endpoint |
+| **sentence-transformers** | Local embedding generation (all-MiniLM-L6-v2, 384-dim) |
+| **ChromaDB** | Vector database for semantic similarity search |
+| **Ollama** | Local LLM inference (no API keys needed) |
+| **PyMuPDF** | PDF text extraction with page metadata |
+| **python-magic** | Magic byte file type validation |
+| **slowapi** | Rate limiting per endpoint |
+| **structlog** | Structured JSON logging with request IDs |
+| **Docker Compose** | One-command startup (API + ChromaDB + Ollama) |
+| **GitHub Actions** | CI: lint + test + security audit (pip-audit) |
 
-## Project Status
+## Security
 
-Under active development (Sprint 1).
+- **File upload validation**: Magic byte verification (not just Content-Type header), MIME allowlist, 25MB size limit, UUID storage paths, filename sanitization against path traversal
+- **Prompt injection defense**: Document content is untrusted. Retrieved chunks are delimiter-wrapped, instruction patterns are filtered, suspicious content is logged
+- **Secrets management**: All config via `.env` with `DOCMIND_` prefix, `.env` in `.gitignore` from first commit
+- **Input validation**: Pydantic models on every endpoint — no raw user input reaches filesystem or database
+- **Rate limiting**: `/api/upload` (10/min), `/api/ask` (30/min) via slowapi
+- **CORS**: Explicit origin allowlist, no wildcard
+- **Error handling**: Safe messages to clients, detailed context in structured logs, no stack traces in responses
 
-- [x] Project scaffold + CI pipeline
-- [ ] PDF upload with file validation
-- [ ] Document chunking + embedding pipeline
-- [ ] Semantic search retrieval
-- [ ] LLM-powered Q&A with citations
-- [ ] React frontend
+## What I'd Improve With More Time
+
+- Cross-encoder re-ranking (cross-encoder/ms-marco-MiniLM-L-6-v2) for better retrieval precision
+- JWT authentication with user-scoped document access
+- Conversation memory within sessions
+- DOCX and TXT file format support
+- Confidence scoring on answers
+- React frontend with upload and query interface
 
 ## License
 

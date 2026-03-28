@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     embedding_model: str = "all-MiniLM-L6-v2"
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2"
-    rate_limit: str = "10/minute"
+    upload_rate_limit: str = "10/minute"
+    ask_rate_limit: str = "30/minute"
+    cors_origins: list[str] = ["http://localhost:3000"]
 
     model_config = {"env_file": ".env", "env_prefix": "DOCMIND_"}
