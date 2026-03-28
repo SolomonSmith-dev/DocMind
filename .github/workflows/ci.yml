@@ -36,4 +36,4 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install ".[dev]"
-      - run: pip-audit --ignore-vuln CVE-2026-4539
+      - run: pip-audit --ignore-vuln CVE-2026-4539  # Ignore dev-only CVE-2026-4539 (e.g. in transitive tooling like pygments); remove this flag once dependencies are updated and pip-audit no longer reports this CVE.
