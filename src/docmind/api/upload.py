@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
 from docmind.core.ingest import ingest_pdf
+from docmind.core.retrieval import store_chunks
 from docmind.core.security import validate_and_prepare_upload
 from docmind.core.store import document_store
 
@@ -65,8 +66,16 @@ async def upload_document(file: UploadFile, request: Request):
         logger.error("ingestion_failed", doc_id=doc_id, error=str(e))
         raise HTTPException(status_code=422, detail="Failed to process PDF") from e
 
-    # Store metadata and chunks
+    # Store metadata
     document_store.save(ingested)
+
+    # Generate embeddings and store in ChromaDB
+    store_chunks(
+        chunks=ingested.chunks,
+        collection_name=settings.chroma_collection,
+        host=settings.chroma_host,
+        port=settings.chroma_port,
+    )
 
     logger.info(
         "document_uploaded",
