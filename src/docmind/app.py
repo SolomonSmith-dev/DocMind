@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from docmind.api import health, query, upload
+from docmind.api import ask, health, query, upload
 from docmind.config import Settings
 from docmind.logging import setup_logging
 from docmind.middleware import RequestIDMiddleware
@@ -18,6 +18,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router, tags=["health"])
     app.include_router(upload.router, prefix="/api", tags=["upload"])
     app.include_router(query.router, prefix="/api", tags=["query"])
+    app.include_router(ask.router, prefix="/api", tags=["ask"])
 
     return app
 
