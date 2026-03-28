@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+
+# Environment
+.env
+
+# Data
+data/uploads/*
+!data/uploads/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+
+# Planning docs
+ForClaudeCode/
+
+# OS
+.DS_Store
+
+# Docker
+*.log
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
