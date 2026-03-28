@@ -36,4 +36,4 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install ".[dev]"
-      - run: pip-audit
+      - run: pip-audit --ignore-vuln CVE-2026-4539

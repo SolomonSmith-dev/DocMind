@@ -86,9 +86,7 @@ class TestGenerateAnswer:
     def test_successful_generation(self, mock_ollama):
         mock_client = MagicMock()
         mock_client.chat.return_value = {
-            "message": {
-                "content": "The revenue was $10M (page 5)."
-            }
+            "message": {"content": "The revenue was $10M (page 5)."}
         }
         mock_ollama.Client.return_value = mock_client
 
@@ -136,9 +134,7 @@ class TestGenerateAnswer:
 
 
 class TestAskEndpoint:
-    def test_ask_with_graceful_degradation(
-        self, client, sample_pdf_bytes
-    ):
+    def test_ask_with_graceful_degradation(self, client, sample_pdf_bytes):
         """Full flow: upload → ask (Ollama down → fallback)."""
         # Upload
         resp = client.post(
