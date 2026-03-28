@@ -145,8 +145,7 @@ def generate_answer(
     """
     if not chunks:
         return AnswerResult(
-            answer="No relevant documents found. "
-            "Please upload a document first.",
+            answer="No relevant documents found. Please upload a document first.",
             citations=[],
             model="none",
             chunks_used=0,
@@ -201,14 +200,12 @@ def generate_answer(
         fallback_parts = []
         for c in chunks:
             fallback_parts.append(
-                f"[Page {c.page_number}, {c.source_filename}]: "
-                f"{c.text}"
+                f"[Page {c.page_number}, {c.source_filename}]: {c.text}"
             )
         fallback_answer = (
             "LLM is currently unavailable. "
             "Here are the most relevant passages from your "
-            "documents:\n\n"
-            + "\n\n".join(fallback_parts)
+            "documents:\n\n" + "\n\n".join(fallback_parts)
         )
 
         return AnswerResult(
