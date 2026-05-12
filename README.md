@@ -139,14 +139,9 @@ ruff format src/    # format
 - **CORS**: Explicit origin allowlist, no wildcard
 - **Error handling**: Safe messages to clients, detailed context in structured logs, no stack traces in responses
 
-## What I'd Improve With More Time
+## Roadmap
 
-- Cross-encoder re-ranking (cross-encoder/ms-marco-MiniLM-L-6-v2) for better retrieval precision
-- JWT authentication with user-scoped document access
-- Conversation memory within sessions
-- DOCX and TXT file format support
-- Confidence scoring on answers
-- React frontend with upload and query interface
+Tracked in [open enhancement issues](https://github.com/SolomonSmith-dev/DocMind/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement).
 
 ## License
 
