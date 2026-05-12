@@ -43,8 +43,8 @@ Not a ChatGPT wrapper. A real pipeline: parsing, chunking, embedding, vector sea
 - **Intelligent Chunking** with configurable overlap, preferring paragraph/sentence boundaries
 - **Semantic Search** via sentence-transformers (all-MiniLM-L6-v2) + ChromaDB
 - **LLM Answer Synthesis** with page-level citations via Ollama
-- **Prompt Injection Defense** — document chunks are untrusted input, wrapped in delimiters with instruction pattern filtering
-- **Graceful Degradation** — returns raw chunks with citations when LLM is unavailable
+- **Prompt Injection Defense**: document chunks are untrusted input, wrapped in delimiters with instruction pattern filtering
+- **Graceful Degradation**: returns raw chunks with citations when LLM is unavailable
 - **Structured JSON Logging** with request ID propagation
 - **Rate Limiting** on upload (10/min) and ask (30/min) endpoints
 
@@ -68,8 +68,8 @@ docker compose up --build
 | `GET` | `/health` | Service status |
 | `POST` | `/api/upload` | Upload a PDF (multipart form) |
 | `GET` | `/api/documents` | List all uploaded documents |
-| `POST` | `/api/query` | Semantic search — returns ranked chunks with scores |
-| `POST` | `/api/ask` | Full Q&A — returns cited answer from LLM |
+| `POST` | `/api/query` | Semantic search. Returns ranked chunks with scores |
+| `POST` | `/api/ask` | Full Q&A. Returns cited answer from LLM |
 
 ### POST /api/upload
 
@@ -134,7 +134,7 @@ ruff format src/    # format
 - **File upload validation**: Magic byte verification (not just Content-Type header), MIME allowlist, 25MB size limit, UUID storage paths, filename sanitization against path traversal
 - **Prompt injection defense**: Document content is untrusted. Retrieved chunks are delimiter-wrapped, instruction patterns are filtered, suspicious content is logged
 - **Secrets management**: All config via `.env` with `DOCMIND_` prefix, `.env` in `.gitignore` from first commit
-- **Input validation**: Pydantic models on every endpoint — no raw user input reaches filesystem or database
+- **Input validation**: Pydantic models on every endpoint. No raw user input reaches filesystem or database
 - **Rate limiting**: `/api/upload` (10/min), `/api/ask` (30/min) via slowapi
 - **CORS**: Explicit origin allowlist, no wildcard
 - **Error handling**: Safe messages to clients, detailed context in structured logs, no stack traces in responses
