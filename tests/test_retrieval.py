@@ -133,9 +133,7 @@ class TestUploadThenQuery:
         # Upload
         resp = client.post(
             "/api/upload",
-            files={
-                "file": ("test.pdf", sample_pdf_bytes, "application/pdf")
-            },
+            files={"file": ("test.pdf", sample_pdf_bytes, "application/pdf")},
         )
         assert resp.status_code == 201
 

@@ -22,9 +22,7 @@ def create_app() -> FastAPI:
     app.state.limiter = limiter
 
     # Exception handler for rate limit exceeded
-    app.add_exception_handler(
-        RateLimitExceeded, _rate_limit_exceeded_handler
-    )
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     # CORS — explicit origins, no wildcard
     app.add_middleware(

@@ -32,9 +32,7 @@ def validate_file_size(content: bytes, max_bytes: int = MAX_UPLOAD_BYTES) -> Non
     but once we call .read(), it's all in memory.
     """
     if len(content) > max_bytes:
-        raise ValueError(
-            f"File exceeds maximum size of {max_bytes // (1024 * 1024)}MB"
-        )
+        raise ValueError(f"File exceeds maximum size of {max_bytes // (1024 * 1024)}MB")
 
 
 def validate_magic_bytes(content: bytes) -> str:

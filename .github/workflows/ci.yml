@@ -35,5 +35,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - run: python -m pip install --upgrade "pip>=26.1"
       - run: pip install ".[dev]"
-      - run: pip-audit
+      - run: pip-audit --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-3219
+        # CVE-2026-4539: dev-only transitive CVE, no fix yet.
+        # CVE-2026-3219: pip CVE with no fix available; pip is upgraded to >=26.1 above which patches the companion CVE-2026-6357.
