@@ -1,5 +1,7 @@
 # DocMind
 
+![CI](https://github.com/SolomonSmith-dev/DocMind/actions/workflows/ci.yml/badge.svg) ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg) ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
+
 Intelligent document Q&A system built on Retrieval-Augmented Generation (RAG). Upload PDFs, ask questions in natural language, get cited answers grounded in your actual documents.
 
 Not a ChatGPT wrapper. A real pipeline: parsing, chunking, embedding, vector search, LLM synthesis with page-level citations and prompt injection defense.
