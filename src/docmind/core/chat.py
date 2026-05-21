@@ -63,15 +63,15 @@ SUSPICIOUS_PATTERNS = [
 ]
 
 # Confidence factor weights -- must sum to 1.0
-_W_SIMILARITY = 0.5   # Factor 1: top chunk cosine similarity
-_W_COVERAGE = 0.3     # Factor 2: chunks_used / top_k_requested
-_W_LLM = 0.2          # Factor 3: LLM self-reported confidence (normalized)
+_W_SIMILARITY = 0.5  # Factor 1: top chunk cosine similarity
+_W_COVERAGE = 0.3  # Factor 2: chunks_used / top_k_requested
+_W_LLM = 0.2  # Factor 3: LLM self-reported confidence (normalized)
 
 # Patterns for parsing LLM self-reported confidence out of response text.
 _CONFIDENCE_PATTERNS = [
-    r"[Cc]onfidence[:\s]+(\d+(?:\.\d+)?)\s*/\s*10",   # "Confidence: 7/10"
-    r"(\d+(?:\.\d+)?)\s+out\s+of\s+10",                # "7 out of 10"
-    r"[Cc]onfidence[:\s]+(\d+(?:\.\d+)?)/10",          # "confidence:7/10"
+    r"[Cc]onfidence[:\s]+(\d+(?:\.\d+)?)\s*/\s*10",  # "Confidence: 7/10"
+    r"(\d+(?:\.\d+)?)\s+out\s+of\s+10",  # "7 out of 10"
+    r"[Cc]onfidence[:\s]+(\d+(?:\.\d+)?)/10",  # "confidence:7/10"
 ]
 
 # Strips the trailing confidence annotation the LLM appends from user-facing text.
@@ -165,9 +165,7 @@ def compute_confidence(
     llm_score = _parse_llm_confidence(llm_response_text)
 
     confidence = (
-        _W_SIMILARITY * top_similarity
-        + _W_COVERAGE * coverage
-        + _W_LLM * llm_score
+        _W_SIMILARITY * top_similarity + _W_COVERAGE * coverage + _W_LLM * llm_score
     )
 
     result = round(max(0.0, min(1.0, confidence)), 4)

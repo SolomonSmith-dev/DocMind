@@ -149,9 +149,7 @@ def extract_pages_docx(file_path: Path) -> list[tuple[int, str]]:
                 cell_texts = []
                 for cell in row.iter(f"{{{wml_ns}}}tc"):
                     cell_text = "".join(
-                        node.text or ""
-                        for node in cell.iter()
-                        if hasattr(node, "text")
+                        node.text or "" for node in cell.iter() if hasattr(node, "text")
                     )
                     if cell_text.strip():
                         cell_texts.append(cell_text.strip())
