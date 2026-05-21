@@ -4,7 +4,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from docmind.api import ask, health, query, upload
+from docmind.api import ask, auth, health, query, upload
 from docmind.config import Settings
 from docmind.logging import setup_logging
 from docmind.middleware import RequestIDMiddleware
@@ -24,7 +24,7 @@ def create_app() -> FastAPI:
     # Exception handler for rate limit exceeded
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-    # CORS — explicit origins, no wildcard
+    # CORS -- explicit origins, no wildcard
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -35,6 +35,7 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestIDMiddleware)
 
     app.include_router(health.router, tags=["health"])
+    app.include_router(auth.router, prefix="/api", tags=["auth"])
     app.include_router(upload.router, prefix="/api", tags=["upload"])
     app.include_router(query.router, prefix="/api", tags=["query"])
     app.include_router(ask.router, prefix="/api", tags=["ask"])

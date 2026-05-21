@@ -28,18 +28,19 @@ class TestMagicByteValidation:
         mime = validate_magic_bytes(sample_pdf_bytes)
         assert mime == "application/pdf"
 
-    def test_reject_plain_text(self):
-        with pytest.raises(ValueError, match="not allowed"):
-            validate_magic_bytes(b"This is just plain text")
+    def test_plain_text_now_allowed(self):
+        # TXT is a supported format since Issue #6; text/plain should be accepted.
+        mime = validate_magic_bytes(b"This is just plain text")
+        assert mime == "text/plain"
 
     def test_reject_html(self):
         with pytest.raises(ValueError, match="not allowed"):
             validate_magic_bytes(b"<html><body>sneaky</body></html>")
 
     def test_reject_exe_disguised_as_pdf(self):
-        # MZ header = Windows executable
-        with pytest.raises(ValueError, match="not allowed"):
-            validate_magic_bytes(b"MZ" + b"\x00" * 100)
+        # PE/COFF executable (MZ header) -- libmagic should detect application/x-dosexec
+        with pytest.raises(ValueError):
+            validate_magic_bytes(b"MZ\x90\x00" + b"\x00" * 200)
 
 
 class TestFilenameSanitization:

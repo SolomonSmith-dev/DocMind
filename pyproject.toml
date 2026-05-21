@@ -21,6 +21,9 @@ dependencies = [
     "slowapi>=0.1.9",
     "structlog>=24.1",
     "ollama>=0.1",
+    "python-docx>=1.1",
+    "PyJWT>=2.8",
+    "bcrypt>=4.0",
 ]
 
 [project.optional-dependencies]

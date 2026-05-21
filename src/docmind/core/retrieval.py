@@ -76,6 +76,7 @@ def store_chunks(
     collection_name: str = "docmind",
     host: str = "localhost",
     port: int = 8000,
+    user_id: str | None = None,
 ) -> int:
     """Generate embeddings for chunks and store them in ChromaDB.
 
@@ -83,7 +84,9 @@ def store_chunks(
     - id: unique identifier (doc_id + chunk_index)
     - embedding: dense vector from sentence-transformers
     - document: the chunk text
-    - metadata: doc_id, page_number, source_filename, chunk_index
+    - metadata: doc_id, page_number, source_filename, chunk_index, user_id
+
+    user_id is stored in metadata to enable per-user filtering at query time.
     """
     if not chunks:
         return 0
@@ -100,6 +103,7 @@ def store_chunks(
             "page_number": c.page_number,
             "chunk_index": c.chunk_index,
             "source_filename": c.source_filename,
+            "user_id": user_id or "",
         }
         for c in chunks
     ]
@@ -116,6 +120,7 @@ def store_chunks(
         collection=collection_name,
         count=len(chunks),
         doc_id=chunks[0].doc_id,
+        user_id=user_id,
     )
 
     return len(chunks)
@@ -140,11 +145,12 @@ def retrieve_chunks(
     doc_id: str | None = None,
     host: str = "localhost",
     port: int = 8000,
+    user_id: str | None = None,
 ) -> list[RetrievalResult]:
     """Find the top-k most relevant chunks for a query.
 
     Embeds the query text, then searches ChromaDB using cosine similarity.
-    Optionally filters by doc_id to search within a specific document.
+    Optionally filters by doc_id and/or user_id to scope retrieval.
 
     Returns results sorted by relevance (highest score first).
     """
@@ -152,7 +158,19 @@ def retrieve_chunks(
 
     query_embedding = generate_embeddings([query])
 
-    where_filter = {"doc_id": doc_id} if doc_id else None
+    # Build the ChromaDB $and filter from whichever fields are set.
+    filters: list[dict] = []
+    if doc_id:
+        filters.append({"doc_id": doc_id})
+    if user_id:
+        filters.append({"user_id": user_id})
+
+    if len(filters) == 0:
+        where_filter = None
+    elif len(filters) == 1:
+        where_filter = filters[0]
+    else:
+        where_filter = {"$and": filters}
 
     results = collection.query(
         query_embeddings=query_embedding,
