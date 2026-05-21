@@ -6,6 +6,8 @@ const API_BASE = import.meta.env.VITE_API_BASE ?? ''
 const buildUrl = (path) => `${API_BASE}${path}`
 
 function App() {
+  const apiOrigin =
+    API_BASE || (typeof window !== 'undefined' ? window.location.origin : '')
   const [documents, setDocuments] = useState([])
   const [selectedDocument, setSelectedDocument] = useState('all')
   const [question, setQuestion] = useState('')
@@ -190,7 +192,9 @@ function App() {
         </div>
         <div className="status-card">
           <span className="status-label">API</span>
-          <span className="status-value">http://localhost:8000</span>
+          <span className="status-value">
+            {apiOrigin || 'http://localhost:8000'}
+          </span>
         </div>
       </header>
 

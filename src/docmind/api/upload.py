@@ -141,7 +141,11 @@ async def delete_document(doc_id: str, request: Request):
 
     document_store.delete(doc_id)
 
-    file_path = Path(settings.upload_dir) / f"{doc_id}.pdf"
+    upload_root = Path(settings.upload_dir).resolve()
+    file_path = (upload_root / f"{doc_id}.pdf").resolve()
+    if not file_path.is_relative_to(upload_root):
+        raise HTTPException(status_code=400, detail="Invalid document path")
+
     file_path.unlink(missing_ok=True)
 
     logger.info("document_deleted", doc_id=doc_id, chunks_deleted=chunks_deleted)

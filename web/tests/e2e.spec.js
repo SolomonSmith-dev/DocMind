@@ -11,7 +11,10 @@ test('upload and ask flow', async ({ page }) => {
   await page.goto('/')
 
   await page.setInputFiles('input[type="file"]', samplePdf)
-  await expect(page.getByText('sample.pdf')).toBeVisible({ timeout: 20000 })
+  await expect(page.getByRole('status')).toContainText('Upload complete', {
+    timeout: 15000,
+  })
+  await expect(page.getByText('sample.pdf')).toBeVisible()
 
   await page.getByLabel('Question').fill('What is this document about?')
   await page.getByRole('button', { name: 'Ask DocMind' }).click()
