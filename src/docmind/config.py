@@ -26,6 +26,6 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "docmind-dev-secret-change-in-production"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
 
     model_config = {"env_file": ".env", "env_prefix": "DOCMIND_"}
