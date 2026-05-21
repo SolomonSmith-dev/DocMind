@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import structlog
 from fastapi import APIRouter, HTTPException, Request, UploadFile
 from pydantic import BaseModel
@@ -5,7 +7,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from docmind.core.ingest import ingest_pdf
-from docmind.core.retrieval import store_chunks
+from docmind.core.retrieval import delete_document_chunks, store_chunks
 from docmind.core.security import validate_and_prepare_upload
 from docmind.core.store import document_store
 
@@ -27,6 +29,12 @@ class DocumentInfo(BaseModel):
     pages: int
     chunks: int
     uploaded_at: str
+
+
+class DeleteResponse(BaseModel):
+    document_id: str
+    deleted: bool
+    chunks_deleted: int
 
 
 limiter = Limiter(key_func=get_remote_address)
@@ -114,3 +122,32 @@ async def list_documents():
         )
         for d in docs
     ]
+
+
+@router.delete("/documents/{doc_id}", response_model=DeleteResponse)
+async def delete_document(doc_id: str, request: Request):
+    """Delete an uploaded document and its stored chunks."""
+    settings = request.app.state.settings
+    record = document_store.get(doc_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    chunks_deleted = delete_document_chunks(
+        doc_id=doc_id,
+        collection_name=settings.chroma_collection,
+        host=settings.chroma_host,
+        port=settings.chroma_port,
+    )
+
+    document_store.delete(doc_id)
+
+    file_path = Path(settings.upload_dir) / f"{doc_id}.pdf"
+    file_path.unlink(missing_ok=True)
+
+    logger.info("document_deleted", doc_id=doc_id, chunks_deleted=chunks_deleted)
+
+    return DeleteResponse(
+        document_id=doc_id,
+        deleted=True,
+        chunks_deleted=chunks_deleted,
+    )

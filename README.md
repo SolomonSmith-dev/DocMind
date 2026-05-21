@@ -4,6 +4,8 @@
 
 Intelligent document Q&A system built on Retrieval-Augmented Generation (RAG). Upload PDFs, ask questions in natural language, get cited answers grounded in your actual documents.
 
+![DocMind Web UI](docs/web-ui.png)
+
 Not a ChatGPT wrapper. A real pipeline: parsing, chunking, embedding, vector search, LLM synthesis with page-level citations and prompt injection defense.
 
 ## Architecture
@@ -60,6 +62,7 @@ docker compose up --build
 - API docs (Swagger): http://localhost:8000/docs
 - Health check: http://localhost:8000/health
 - ChromaDB: http://localhost:8001
+- Web UI (nginx): http://localhost:3000
 
 ## API Endpoints
 
@@ -111,6 +114,21 @@ brew install libmagic
 pytest -v           # run tests (48 tests)
 ruff check src/     # lint
 ruff format src/    # format
+```
+
+### Frontend (React + Vite)
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Vite proxies `/api` and `/health` calls to `http://localhost:8000`.
+
+```bash
+npm run build    # build frontend
+npm run test:e2e # run Playwright E2E (API must be running)
 ```
 
 ## Tech Stack

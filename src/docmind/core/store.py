@@ -50,6 +50,11 @@ class DocumentStore:
     def list_all(self) -> list[DocumentRecord]:
         return list(self._documents.values())
 
+    def delete(self, doc_id: str) -> DocumentRecord | None:
+        record = self._documents.pop(doc_id, None)
+        self._ingested.pop(doc_id, None)
+        return record
+
 
 # Singleton — shared across the app lifetime
 document_store = DocumentStore()

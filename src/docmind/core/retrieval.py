@@ -121,6 +121,30 @@ def store_chunks(
     return len(chunks)
 
 
+def delete_document_chunks(
+    doc_id: str,
+    collection_name: str = "docmind",
+    host: str = "localhost",
+    port: int = 8000,
+) -> int:
+    """Delete all chunks for a document from ChromaDB."""
+    collection = get_collection(collection_name, host, port)
+    existing = collection.get(where={"doc_id": doc_id})
+    ids = existing.get("ids", []) if isinstance(existing, dict) else []
+
+    if ids:
+        collection.delete(ids=ids)
+
+    logger.info(
+        "chunks_deleted",
+        collection=collection_name,
+        count=len(ids),
+        doc_id=doc_id,
+    )
+
+    return len(ids)
+
+
 @dataclass
 class RetrievalResult:
     """A single retrieved chunk with its similarity score."""

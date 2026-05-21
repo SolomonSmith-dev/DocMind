@@ -16,6 +16,14 @@ services:
       timeout: 5s
       retries: 3
 
+  frontend:
+    build: ./web
+    ports:
+      - "3000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
   chromadb:
     image: chromadb/chroma:latest
     ports:
