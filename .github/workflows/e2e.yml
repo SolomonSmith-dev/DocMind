@@ -33,7 +33,7 @@ jobs:
         env:
           DOCMIND_CHROMA_HOST: localhost
           DOCMIND_CHROMA_PORT: "8001"
-          DOCMIND_JWT_SECRET_KEY: ci-e2e-secret
+          DOCMIND_JWT_SECRET_KEY: ${{ secrets.CI_JWT_SECRET }}
 
       - name: Wait for API
         run: until curl -sf http://localhost:8000/health; do sleep 1; done
