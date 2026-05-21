@@ -8,9 +8,9 @@ Covers:
 - Cross-user document isolation: user A cannot retrieve user B's chunks
 """
 
+import jwt
 import pytest
 from fastapi.testclient import TestClient
-from jose import jwt
 
 from docmind.app import create_app
 from docmind.core.auth import create_access_token

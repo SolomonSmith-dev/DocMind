@@ -14,10 +14,11 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 import bcrypt
+import jwt
 import structlog
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+from jwt.exceptions import InvalidTokenError
 
 logger = structlog.get_logger()
 
@@ -63,9 +64,9 @@ def decode_token(token: str, secret_key: str, algorithm: str) -> str:
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         subject: str | None = payload.get("sub")
         if subject is None:
-            raise JWTError("missing sub claim")
+            raise InvalidTokenError("missing sub claim")
         return subject
-    except JWTError as exc:
+    except InvalidTokenError as exc:
         logger.warning("jwt_validation_failed", error=str(exc))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
