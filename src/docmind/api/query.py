@@ -1,7 +1,8 @@
 import structlog
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
+from docmind.core.auth import get_current_user_id
 from docmind.core.rerank import rerank
 from docmind.core.retrieval import retrieve_chunks
 
@@ -29,7 +30,11 @@ class QueryResponse(BaseModel):
 
 
 @router.post("/query", response_model=QueryResponse)
-async def query_documents(body: QueryRequest, request: Request):
+async def query_documents(
+    body: QueryRequest,
+    request: Request,
+    user_id: str = Depends(get_current_user_id),
+):
     """Search uploaded documents using semantic similarity.
 
     Embeds the question, searches ChromaDB for the most relevant
@@ -46,6 +51,7 @@ async def query_documents(body: QueryRequest, request: Request):
         doc_id=body.document_id,
         host=settings.chroma_host,
         port=settings.chroma_port,
+        user_id=user_id,
     )
 
     if settings.enable_rerank and results:

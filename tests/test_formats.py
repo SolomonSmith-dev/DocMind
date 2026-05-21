@@ -5,9 +5,7 @@ import zipfile
 
 from docmind.core.security import validate_magic_bytes
 
-_DOCX_MIME = (
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-)
+_DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
 class TestDocxUpload:
@@ -79,9 +77,7 @@ class TestTxtUpload:
             "/api/upload",
             files={"file": ("notes.txt", sample_txt_bytes, "text/plain")},
         )
-        resp = client.post(
-            "/api/ask", json={"question": "What is in this document?"}
-        )
+        resp = client.post("/api/ask", json={"question": "What is in this document?"})
         assert resp.status_code == 200
         assert resp.json()["chunks_used"] > 0
 

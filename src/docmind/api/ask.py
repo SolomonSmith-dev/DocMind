@@ -1,9 +1,10 @@
 import structlog
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from docmind.core.auth import get_current_user_id
 from docmind.core.chat import generate_answer
 from docmind.core.rerank import rerank
 from docmind.core.retrieval import retrieve_chunks
@@ -42,7 +43,11 @@ class AskResponse(BaseModel):
 
 @router.post("/ask", response_model=AskResponse)
 @limiter.limit("30/minute")
-async def ask_question(request: Request, body: AskRequest):
+async def ask_question(
+    request: Request,
+    body: AskRequest,
+    user_id: str = Depends(get_current_user_id),
+):
     """Ask a question about uploaded documents.
 
     Full RAG pipeline:
@@ -69,6 +74,7 @@ async def ask_question(request: Request, body: AskRequest):
         doc_id=body.document_id,
         host=settings.chroma_host,
         port=settings.chroma_port,
+        user_id=user_id,
     )
 
     if settings.enable_rerank and chunks:

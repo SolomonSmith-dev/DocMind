@@ -136,9 +136,7 @@ class TestGenerateAnswerConfidence:
     def test_llm_confidence_parsed_from_response(self, mock_ollama):
         mock_client = MagicMock()
         mock_client.chat.return_value = {
-            "message": {
-                "content": "The revenue was $10M (page 5).\nConfidence: 8/10"
-            }
+            "message": {"content": "The revenue was $10M (page 5).\nConfidence: 8/10"}
         }
         mock_ollama.Client.return_value = mock_client
 

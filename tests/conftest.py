@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from docmind.api import ask as ask_router
 from docmind.api import upload as upload_router
 from docmind.app import create_app
+from docmind.core.auth import create_access_token
 from docmind.core.retrieval import reset_client
 from docmind.core.session import session_store
 from docmind.core.store import document_store
@@ -34,7 +35,14 @@ def client(tmp_path):
     upload_router.limiter._storage.reset()
     # Reset session store to prevent cross-test session bleed
     session_store._sessions = {}
-    with TestClient(app) as c:
+    # Generate a test JWT so all protected endpoints work without extra headers.
+    test_token = create_access_token(
+        subject="test-user",
+        secret_key=app.state.settings.jwt_secret_key,
+        algorithm=app.state.settings.jwt_algorithm,
+        expire_minutes=60,
+    )
+    with TestClient(app, headers={"Authorization": f"Bearer {test_token}"}) as c:
         yield c
 
 

@@ -1,9 +1,10 @@
 import structlog
-from fastapi import APIRouter, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from docmind.core.auth import get_current_user_id
 from docmind.core.ingest import ingest_document
 from docmind.core.retrieval import store_chunks
 from docmind.core.security import validate_and_prepare_upload
@@ -34,7 +35,11 @@ limiter = Limiter(key_func=get_remote_address)
 
 @router.post("/upload", response_model=UploadResponse, status_code=201)
 @limiter.limit("10/minute")
-async def upload_document(request: Request, file: UploadFile):
+async def upload_document(
+    request: Request,
+    file: UploadFile,
+    user_id: str = Depends(get_current_user_id),
+):
     """Upload a document (PDF, DOCX, or TXT) for processing.
 
     The file goes through security validation (magic bytes, size, MIME type),
@@ -75,6 +80,7 @@ async def upload_document(request: Request, file: UploadFile):
         collection_name=settings.chroma_collection,
         host=settings.chroma_host,
         port=settings.chroma_port,
+        user_id=user_id,
     )
 
     logger.info(
