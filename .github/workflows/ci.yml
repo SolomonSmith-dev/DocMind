@@ -66,8 +66,10 @@ jobs:
             --ignore-vuln PYSEC-2025-214 \
             --ignore-vuln PYSEC-2025-217 \
             --ignore-vuln PYSEC-2025-218 \
-            --ignore-vuln PYSEC-2025-216
-          # Unfixable transitive CVEs (no patched releases as of 2026-05-20):
+            --ignore-vuln PYSEC-2025-216 \
+            --ignore-vuln PYSEC-2025-183
+          # Unfixable CVEs (no patched releases as of 2026-05-20):
+          # PYSEC-2025-183: PyJWT 2.12.1 (latest) -- no fix version available
           # PYSEC-2024-277: joblib (via sentence-transformers)
           # PYSEC-2025-14x/PYSEC-2026-10x: ollama Python client
           # PYSEC-2025-18x/19x/2xx + PYSEC-2026-139: torch (via sentence-transformers)
