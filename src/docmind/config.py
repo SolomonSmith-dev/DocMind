@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     # Cross-encoder re-ranking: retrieve this many candidates, rerank to top_k.
     enable_rerank: bool = False
     rerank_candidates: int = 20
+    # How many prior turns to inject into the prompt for multi-turn sessions.
+    session_window: int = 5
     cors_origins: list[str] = ["http://localhost:3000"]
 
     model_config = {"env_file": ".env", "env_prefix": "DOCMIND_"}

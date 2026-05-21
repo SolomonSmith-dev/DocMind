@@ -186,14 +186,17 @@ def compute_confidence(
 def build_prompt(
     question: str,
     chunks: list[RetrievalResult],
+    prior_turns: list | None = None,
 ) -> tuple[str, str]:
     """Build the system and user prompts for the LLM.
 
     Returns (system_prompt, user_prompt).
 
-    The system prompt instructs the LLM on behavior.
-    The user prompt contains the document context + question, and asks
-    the model to self-report its confidence on a 0-10 scale.
+    prior_turns is an optional list of Turn objects from the session store.
+    When provided, recent conversation history is injected before the question
+    so the model can resolve follow-up references ("and what about section 2?").
+    Injection defense applies to all turns (prior answers come from the LLM
+    itself so are trusted, but prior questions come from the user).
     """
     system_prompt = (
         "You are DocMind, a document Q&A assistant. "
@@ -220,8 +223,23 @@ def build_prompt(
 
     context = "\n\n".join(context_parts)
 
+    # Inject prior turns as conversation history.
+    # User questions pass through sanitize_chunk for injection defense.
+    history_parts: list[str] = []
+    if prior_turns:
+        for turn in prior_turns:
+            safe_q = sanitize_chunk(turn.question)
+            history_parts.append(f"User: {safe_q}\nAssistant: {turn.answer}")
+
+    history_block = (
+        "\n\nConversation history:\n" + "\n\n".join(history_parts)
+        if history_parts
+        else ""
+    )
+
     user_prompt = (
-        f"Document context:\n\n{context}\n\n"
+        f"Document context:\n\n{context}"
+        f"{history_block}\n\n"
         f"Question: {question}\n\n"
         "Provide a clear answer with page citations. "
         "After your answer, on a new line write exactly: "
@@ -261,6 +279,7 @@ def generate_answer(
     model: str = "llama3.2",
     top_k_requested: int = 5,
     low_confidence_threshold: float = 0.4,
+    prior_turns: list | None = None,
 ) -> AnswerResult:
     """Generate a cited answer using retrieved context + Ollama.
 
@@ -287,7 +306,7 @@ def generate_answer(
             low_confidence=confidence < low_confidence_threshold,
         )
 
-    system_prompt, user_prompt = build_prompt(question, chunks)
+    system_prompt, user_prompt = build_prompt(question, chunks, prior_turns)
 
     citations = [
         Citation(

@@ -7,6 +7,7 @@ from slowapi.util import get_remote_address
 from docmind.core.chat import generate_answer
 from docmind.core.rerank import rerank
 from docmind.core.retrieval import retrieve_chunks
+from docmind.core.session import session_store
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -17,6 +18,7 @@ class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=1000)
     document_id: str | None = None
     top_k: int = Field(default=5, ge=1, le=20)
+    session_id: str | None = None
 
 
 class CitationInfo(BaseModel):
@@ -35,6 +37,7 @@ class AskResponse(BaseModel):
     confidence: float
     # True when confidence falls below DOCMIND_LOW_CONFIDENCE_THRESHOLD.
     low_confidence: bool
+    session_id: str | None = None
 
 
 @router.post("/ask", response_model=AskResponse)
@@ -55,6 +58,10 @@ async def ask_question(request: Request, body: AskRequest):
 
     # When re-ranking is enabled, fetch a larger candidate set then narrow it.
     retrieval_k = settings.rerank_candidates if settings.enable_rerank else body.top_k
+    # Resolve session -- creates one if session_id is unknown or None
+    session = session_store.get_or_create(body.session_id)
+    prior_turns = session.recent_turns(settings.session_window)
+
     chunks = retrieve_chunks(
         query=body.question,
         collection_name=settings.chroma_collection,
@@ -74,7 +81,11 @@ async def ask_question(request: Request, body: AskRequest):
         model=settings.ollama_model,
         top_k_requested=body.top_k,
         low_confidence_threshold=settings.low_confidence_threshold,
+        prior_turns=prior_turns if prior_turns else None,
     )
+
+    # Record this turn for future context
+    session.add_turn(question=body.question, answer=result.answer)
 
     logger.info(
         "ask_completed",
@@ -100,4 +111,5 @@ async def ask_question(request: Request, body: AskRequest):
         chunks_used=result.chunks_used,
         confidence=result.confidence,
         low_confidence=result.low_confidence,
+        session_id=session.id,
     )
