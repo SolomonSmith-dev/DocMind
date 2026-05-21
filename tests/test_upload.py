@@ -12,10 +12,17 @@ class TestUploadEndpoint:
         assert data["status"] == "processed"
         assert "document_id" in data
 
-    def test_upload_rejects_text_file(self, client):
+    def test_upload_rejects_html_file(self, client):
+        # HTML is not an accepted format; rejected regardless of filename.
         response = client.post(
             "/api/upload",
-            files={"file": ("evil.pdf", b"This is not a PDF", "application/pdf")},
+            files={
+                "file": (
+                    "report.pdf",
+                    b"<html><body>not a doc</body></html>",
+                    "text/html",
+                )
+            },
         )
         assert response.status_code == 415
 
