@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     ask_rate_limit: str = "30/minute"
     # Confidence below this value sets low_confidence=True in AskResponse.
     low_confidence_threshold: float = 0.4
+    # Cross-encoder re-ranking: retrieve this many candidates, rerank to top_k.
+    enable_rerank: bool = False
+    rerank_candidates: int = 20
     cors_origins: list[str] = ["http://localhost:3000"]
 
     model_config = {"env_file": ".env", "env_prefix": "DOCMIND_"}

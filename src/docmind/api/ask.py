@@ -5,6 +5,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from docmind.core.chat import generate_answer
+from docmind.core.rerank import rerank
 from docmind.core.retrieval import retrieve_chunks
 
 router = APIRouter()
@@ -52,14 +53,19 @@ async def ask_question(request: Request, body: AskRequest):
     """
     settings = request.app.state.settings
 
+    # When re-ranking is enabled, fetch a larger candidate set then narrow it.
+    retrieval_k = settings.rerank_candidates if settings.enable_rerank else body.top_k
     chunks = retrieve_chunks(
         query=body.question,
         collection_name=settings.chroma_collection,
-        top_k=body.top_k,
+        top_k=retrieval_k,
         doc_id=body.document_id,
         host=settings.chroma_host,
         port=settings.chroma_port,
     )
+
+    if settings.enable_rerank and chunks:
+        chunks = rerank(query=body.question, chunks=chunks, top_k=body.top_k)
 
     result = generate_answer(
         question=body.question,

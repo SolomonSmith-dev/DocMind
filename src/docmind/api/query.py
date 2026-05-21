@@ -2,6 +2,7 @@ import structlog
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
+from docmind.core.rerank import rerank
 from docmind.core.retrieval import retrieve_chunks
 
 router = APIRouter()
@@ -37,14 +38,18 @@ async def query_documents(body: QueryRequest, request: Request):
     """
     settings = request.app.state.settings
 
+    retrieval_k = settings.rerank_candidates if settings.enable_rerank else body.top_k
     results = retrieve_chunks(
         query=body.question,
         collection_name=settings.chroma_collection,
-        top_k=body.top_k,
+        top_k=retrieval_k,
         doc_id=body.document_id,
         host=settings.chroma_host,
         port=settings.chroma_port,
     )
+
+    if settings.enable_rerank and results:
+        results = rerank(query=body.question, chunks=results, top_k=body.top_k)
 
     sources = [
         Source(
