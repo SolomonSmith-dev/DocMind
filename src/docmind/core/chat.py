@@ -4,7 +4,7 @@ This is the brain of DocMind. The flow:
 1. Retrieve relevant chunks from ChromaDB
 2. Build a prompt with the chunks wrapped in delimiters
 3. Send to Ollama (local LLM)
-4. Return the answer with page citations
+4. Return the answer with page citations and a confidence score
 
 PROMPT INJECTION DEFENSE:
 Document content is UNTRUSTED INPUT. A malicious PDF could contain text like
@@ -18,6 +18,28 @@ Our defense:
 - If anything looks suspicious, log it for review
 
 This isn't perfect (no defense is), but it raises the bar significantly.
+
+CONFIDENCE SCORING:
+Each answer carries a confidence score in [0, 1] derived from three factors:
+
+  Factor 1 -- Top retrieval similarity (weight 0.5):
+    The cosine similarity score of the highest-ranked chunk. A chunk with
+    score 0.9 means the embedding space strongly agrees the chunk is
+    relevant. A score near 0 means the query matched nothing useful.
+
+  Factor 2 -- Coverage (weight 0.3):
+    chunks_used / top_k_requested. When all requested slots are filled with
+    real chunks, coverage is 1.0. When no chunks are found, coverage is 0.
+    This is a proxy for how well the corpus covers the question domain.
+
+  Factor 3 -- LLM self-reported confidence (weight 0.2):
+    The answer prompt asks the model to append "Confidence: N/10". We parse
+    that number and normalize it to [0, 1]. If parsing fails (model did not
+    follow the format), we default to 0.5 (neutral). The confidence line is
+    stripped from the user-facing answer text after parsing.
+
+Combined: confidence = 0.5*similarity + 0.3*coverage + 0.2*llm_score
+Result is clamped to [0, 1].
 """
 
 import re
@@ -39,6 +61,24 @@ SUSPICIOUS_PATTERNS = [
     r"system\s*prompt:",
     r"<\/?system>",
 ]
+
+# Confidence factor weights -- must sum to 1.0
+_W_SIMILARITY = 0.5   # Factor 1: top chunk cosine similarity
+_W_COVERAGE = 0.3     # Factor 2: chunks_used / top_k_requested
+_W_LLM = 0.2          # Factor 3: LLM self-reported confidence (normalized)
+
+# Patterns for parsing LLM self-reported confidence out of response text.
+_CONFIDENCE_PATTERNS = [
+    r"[Cc]onfidence[:\s]+(\d+(?:\.\d+)?)\s*/\s*10",   # "Confidence: 7/10"
+    r"(\d+(?:\.\d+)?)\s+out\s+of\s+10",                # "7 out of 10"
+    r"[Cc]onfidence[:\s]+(\d+(?:\.\d+)?)/10",          # "confidence:7/10"
+]
+
+# Strips the trailing confidence annotation the LLM appends from user-facing text.
+_CONFIDENCE_LINE_RE = re.compile(
+    r"\n?[Cc]onfidence[:\s]+\d+(?:\.\d+)?(?:\s*/\s*10|\/10)?\.?\s*$",
+    re.MULTILINE,
+)
 
 
 def sanitize_chunk(text: str) -> str:
@@ -67,6 +107,82 @@ def sanitize_chunk(text: str) -> str:
     return sanitized
 
 
+def _parse_llm_confidence(response_text: str) -> float:
+    """Extract the LLM self-reported confidence from response text.
+
+    Looks for patterns like "Confidence: 7/10" or "7 out of 10".
+    Returns a value normalized to [0, 1]. Defaults to 0.5 on parse failure.
+    """
+    for pattern in _CONFIDENCE_PATTERNS:
+        match = re.search(pattern, response_text, re.IGNORECASE)
+        if match:
+            try:
+                raw = float(match.group(1))
+                normalized = max(0.0, min(1.0, raw / 10.0))
+                logger.debug("llm_confidence_parsed", raw=raw, normalized=normalized)
+                return normalized
+            except (ValueError, IndexError):
+                pass
+
+    logger.debug("llm_confidence_parse_failed_using_default")
+    return 0.5
+
+
+def _strip_confidence_line(text: str) -> str:
+    """Remove the 'Confidence: N/10' line the LLM appends to its response.
+
+    We parse it for scoring but don't expose it to the end user.
+    """
+    return _CONFIDENCE_LINE_RE.sub("", text).rstrip()
+
+
+def compute_confidence(
+    chunks: list[RetrievalResult],
+    top_k_requested: int,
+    llm_response_text: str,
+) -> float:
+    """Compute a weighted confidence score in [0, 1] for an answer.
+
+    Three-factor weighted model:
+
+      Factor 1 -- Top retrieval similarity (weight 0.5):
+        chunks[0].score (cosine similarity of best-matching chunk).
+        0.0 when no chunks were retrieved.
+
+      Factor 2 -- Coverage (weight 0.3):
+        len(chunks) / top_k_requested.
+        Measures how well the corpus fills the retrieval budget.
+        Capped at 1.0 in case top_k is somehow exceeded.
+
+      Factor 3 -- LLM self-reported confidence (weight 0.2):
+        Parsed from the LLM response text (expects "Confidence: N/10").
+        Normalized to [0, 1]. Defaults to 0.5 on parse failure.
+
+    Returns a float clamped to [0.0, 1.0].
+    """
+    top_similarity = chunks[0].score if chunks else 0.0
+    coverage = min(1.0, len(chunks) / top_k_requested) if top_k_requested > 0 else 0.0
+    llm_score = _parse_llm_confidence(llm_response_text)
+
+    confidence = (
+        _W_SIMILARITY * top_similarity
+        + _W_COVERAGE * coverage
+        + _W_LLM * llm_score
+    )
+
+    result = round(max(0.0, min(1.0, confidence)), 4)
+
+    logger.debug(
+        "confidence_computed",
+        top_similarity=top_similarity,
+        coverage=coverage,
+        llm_score=llm_score,
+        confidence=result,
+    )
+
+    return result
+
+
 def build_prompt(
     question: str,
     chunks: list[RetrievalResult],
@@ -76,7 +192,8 @@ def build_prompt(
     Returns (system_prompt, user_prompt).
 
     The system prompt instructs the LLM on behavior.
-    The user prompt contains the document context + question.
+    The user prompt contains the document context + question, and asks
+    the model to self-report its confidence on a 0-10 scale.
     """
     system_prompt = (
         "You are DocMind, a document Q&A assistant. "
@@ -91,7 +208,6 @@ def build_prompt(
         "document chunks."
     )
 
-    # Build context from chunks, each wrapped in delimiters
     context_parts = []
     for chunk in chunks:
         safe_text = sanitize_chunk(chunk.text)
@@ -107,7 +223,9 @@ def build_prompt(
     user_prompt = (
         f"Document context:\n\n{context}\n\n"
         f"Question: {question}\n\n"
-        "Provide a clear answer with page citations."
+        "Provide a clear answer with page citations. "
+        "After your answer, on a new line write exactly: "
+        "Confidence: N/10 (where N is your confidence from 0 to 10)."
     )
 
     return system_prompt, user_prompt
@@ -124,12 +242,16 @@ class Citation:
 
 @dataclass
 class AnswerResult:
-    """The complete answer with citations and metadata."""
+    """The complete answer with citations, metadata, and confidence score."""
 
     answer: str
     citations: list[Citation]
     model: str
     chunks_used: int
+    # Weighted confidence in [0, 1]. See compute_confidence() for factor weights.
+    confidence: float = 0.0
+    # True when confidence falls below DOCMIND_LOW_CONFIDENCE_THRESHOLD (default 0.4).
+    low_confidence: bool = False
 
 
 def generate_answer(
@@ -137,23 +259,36 @@ def generate_answer(
     chunks: list[RetrievalResult],
     ollama_base_url: str = "http://localhost:11434",
     model: str = "llama3.2",
+    top_k_requested: int = 5,
+    low_confidence_threshold: float = 0.4,
 ) -> AnswerResult:
     """Generate a cited answer using retrieved context + Ollama.
 
     If Ollama is unreachable, falls back to returning the raw chunks
     instead of a 500 error. The user still gets useful information.
+
+    Confidence is always computed and attached to the result, including
+    in the fallback path (where llm_response_text is treated as empty,
+    so factor 3 defaults to 0.5).
     """
     if not chunks:
+        # similarity=0, coverage=0, llm default=0.5 => 0.1
+        confidence = compute_confidence(
+            chunks=[],
+            top_k_requested=top_k_requested,
+            llm_response_text="",
+        )
         return AnswerResult(
             answer="No relevant documents found. Please upload a document first.",
             citations=[],
             model="none",
             chunks_used=0,
+            confidence=confidence,
+            low_confidence=confidence < low_confidence_threshold,
         )
 
     system_prompt, user_prompt = build_prompt(question, chunks)
 
-    # Build citations from the chunks we're using
     citations = [
         Citation(
             page_number=c.page_number,
@@ -163,7 +298,6 @@ def generate_answer(
         for c in chunks
     ]
 
-    # Try Ollama
     try:
         client = ollama_lib.Client(host=ollama_base_url)
         response = client.chat(
@@ -173,13 +307,22 @@ def generate_answer(
                 {"role": "user", "content": user_prompt},
             ],
         )
-        answer_text = response["message"]["content"]
+        raw_answer = response["message"]["content"]
+
+        confidence = compute_confidence(
+            chunks=chunks,
+            top_k_requested=top_k_requested,
+            llm_response_text=raw_answer,
+        )
+        # Strip the machine-readable confidence annotation before returning to user.
+        answer_text = _strip_confidence_line(raw_answer)
 
         logger.info(
             "llm_answer_generated",
             model=model,
             chunks_used=len(chunks),
             answer_length=len(answer_text),
+            confidence=confidence,
         )
 
         return AnswerResult(
@@ -187,10 +330,13 @@ def generate_answer(
             citations=citations,
             model=model,
             chunks_used=len(chunks),
+            confidence=confidence,
+            low_confidence=confidence < low_confidence_threshold,
         )
 
     except Exception as e:
-        # Graceful degradation: return chunks as the answer
+        # Graceful degradation: return chunks as the answer.
+        # Confidence factor 3 defaults to 0.5 (no LLM response to parse).
         logger.warning(
             "llm_unavailable_returning_chunks",
             error=str(e),
@@ -208,9 +354,17 @@ def generate_answer(
             "documents:\n\n" + "\n\n".join(fallback_parts)
         )
 
+        confidence = compute_confidence(
+            chunks=chunks,
+            top_k_requested=top_k_requested,
+            llm_response_text="",
+        )
+
         return AnswerResult(
             answer=fallback_answer,
             citations=citations,
             model="fallback",
             chunks_used=len(chunks),
+            confidence=confidence,
+            low_confidence=confidence < low_confidence_threshold,
         )

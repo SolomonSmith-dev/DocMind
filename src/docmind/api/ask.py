@@ -29,6 +29,11 @@ class AskResponse(BaseModel):
     citations: list[CitationInfo]
     model: str
     chunks_used: int
+    # Weighted confidence in [0, 1].
+    # Factors: top similarity (0.5) + coverage (0.3) + LLM self-report (0.2).
+    confidence: float
+    # True when confidence falls below DOCMIND_LOW_CONFIDENCE_THRESHOLD.
+    low_confidence: bool
 
 
 @router.post("/ask", response_model=AskResponse)
@@ -40,14 +45,13 @@ async def ask_question(request: Request, body: AskRequest):
     1. Retrieve relevant chunks via semantic search
     2. Build prompt with delimiter-wrapped context
     3. Send to Ollama LLM for answer synthesis
-    4. Return answer with page citations
+    4. Return answer with page citations and confidence score
 
     If Ollama is unavailable, returns retrieved chunks directly
     instead of failing (graceful degradation).
     """
     settings = request.app.state.settings
 
-    # Step 1: Retrieve relevant chunks
     chunks = retrieve_chunks(
         query=body.question,
         collection_name=settings.chroma_collection,
@@ -57,12 +61,13 @@ async def ask_question(request: Request, body: AskRequest):
         port=settings.chroma_port,
     )
 
-    # Step 2+3: Generate answer with LLM
     result = generate_answer(
         question=body.question,
         chunks=chunks,
         ollama_base_url=settings.ollama_base_url,
         model=settings.ollama_model,
+        top_k_requested=body.top_k,
+        low_confidence_threshold=settings.low_confidence_threshold,
     )
 
     logger.info(
@@ -71,6 +76,8 @@ async def ask_question(request: Request, body: AskRequest):
         model=result.model,
         chunks_used=result.chunks_used,
         citations=len(result.citations),
+        confidence=result.confidence,
+        low_confidence=result.low_confidence,
     )
 
     return AskResponse(
@@ -85,4 +92,6 @@ async def ask_question(request: Request, body: AskRequest):
         ],
         model=result.model,
         chunks_used=result.chunks_used,
+        confidence=result.confidence,
+        low_confidence=result.low_confidence,
     )

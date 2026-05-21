@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     ollama_model: str = "llama3.2"
     upload_rate_limit: str = "10/minute"
     ask_rate_limit: str = "30/minute"
+    # Confidence below this value sets low_confidence=True in AskResponse.
+    low_confidence_threshold: float = 0.4
     cors_origins: list[str] = ["http://localhost:3000"]
 
     model_config = {"env_file": ".env", "env_prefix": "DOCMIND_"}
