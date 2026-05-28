@@ -63,8 +63,8 @@ async def ask_question(
 
     # When re-ranking is enabled, fetch a larger candidate set then narrow it.
     retrieval_k = settings.rerank_candidates if settings.enable_rerank else body.top_k
-    # Resolve session -- creates one if session_id is unknown or None
-    session = session_store.get_or_create(body.session_id)
+    # Resolve session -- scoped to user_id to prevent cross-user hijacking
+    session = session_store.get_or_create(body.session_id, user_id)
     prior_turns = session.recent_turns(settings.session_window)
 
     chunks = retrieve_chunks(

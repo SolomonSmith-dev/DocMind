@@ -19,13 +19,14 @@ from docmind.core.session import Session, SessionStore, Turn
 class TestSessionStore:
     def test_create_returns_session_with_id(self):
         store = SessionStore()
-        session = store.create()
+        session = store.create("user1")
         assert session.id
         assert session.created_at
+        assert session.user_id == "user1"
 
     def test_get_returns_existing_session(self):
         store = SessionStore()
-        session = store.create()
+        session = store.create("user1")
         assert store.get(session.id) is session
 
     def test_get_unknown_returns_none(self):
@@ -34,25 +35,35 @@ class TestSessionStore:
 
     def test_get_or_create_with_none_creates_new(self):
         store = SessionStore()
-        s1 = store.get_or_create(None)
-        s2 = store.get_or_create(None)
+        s1 = store.get_or_create(None, "user1")
+        s2 = store.get_or_create(None, "user1")
         assert s1.id != s2.id
 
     def test_get_or_create_with_id_returns_same(self):
         store = SessionStore()
-        s1 = store.get_or_create("my-session")
-        s2 = store.get_or_create("my-session")
+        s1 = store.get_or_create("my-session", "user1")
+        s2 = store.get_or_create("my-session", "user1")
         assert s1 is s2
+
+    def test_get_or_create_different_user_creates_new_session(self):
+        """User B supplying user A's session_id gets a fresh session."""
+        store = SessionStore()
+        s_a = store.get_or_create("shared-id", "user_a")
+        s_b = store.get_or_create("shared-id", "user_b")
+        assert s_b.id != s_a.id
+        assert s_b.user_id == "user_b"
 
     def test_add_turn_appends_to_history(self):
         store = SessionStore()
-        session = store.create()
+        session = store.create("user1")
         session.add_turn("What is revenue?", "Revenue was $10M.")
         assert len(session.turns) == 1
         assert session.turns[0].question == "What is revenue?"
 
     def test_recent_turns_respects_window(self):
-        session = Session(id="x", created_at="2026-01-01T00:00:00+00:00")
+        session = Session(
+            id="x", user_id="user1", created_at="2026-01-01T00:00:00+00:00"
+        )
         for i in range(10):
             session.add_turn(f"q{i}", f"a{i}")
         recent = session.recent_turns(3)
@@ -61,7 +72,9 @@ class TestSessionStore:
         assert recent[-1].question == "q9"
 
     def test_recent_turns_zero_window_returns_empty(self):
-        session = Session(id="x", created_at="2026-01-01T00:00:00+00:00")
+        session = Session(
+            id="x", user_id="user1", created_at="2026-01-01T00:00:00+00:00"
+        )
         session.add_turn("q", "a")
         assert session.recent_turns(0) == []
 

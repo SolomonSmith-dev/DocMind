@@ -24,20 +24,28 @@ logger = structlog.get_logger()
 
 _bearer = HTTPBearer()
 
-# In-memory user store: {username: hashed_password_bytes}
-# Replace with a real DB in production.
-_USERS: dict[str, bytes] = {
-    "admin": bcrypt.hashpw(b"docmind-admin", bcrypt.gensalt()),
-    "demo": bcrypt.hashpw(b"demo1234", bcrypt.gensalt()),
-}
+
+def build_users(admin_password: str, demo_password: str) -> dict[str, bytes]:
+    """Hash configured plaintext passwords and return the users dict.
+
+    Called once at app startup; result stored in app.state.users.
+    Only adds a user if the password is non-empty, so unconfigured
+    accounts are simply absent (no login possible).
+    """
+    users: dict[str, bytes] = {}
+    if admin_password:
+        users["admin"] = bcrypt.hashpw(admin_password.encode(), bcrypt.gensalt())
+    if demo_password:
+        users["demo"] = bcrypt.hashpw(demo_password.encode(), bcrypt.gensalt())
+    return users
 
 
 def _verify_password(plain: str, hashed: bytes) -> bool:
     return bcrypt.checkpw(plain.encode(), hashed)
 
 
-def authenticate_user(username: str, password: str) -> bool:
-    hashed = _USERS.get(username)
+def authenticate_user(username: str, password: str, users: dict[str, bytes]) -> bool:
+    hashed = users.get(username)
     if hashed is None:
         return False
     return _verify_password(password, hashed)

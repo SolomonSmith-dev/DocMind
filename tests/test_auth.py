@@ -12,6 +12,7 @@ import jwt
 import pytest
 from fastapi.testclient import TestClient
 
+from docmind.api import auth as auth_router
 from docmind.app import create_app
 from docmind.core.auth import create_access_token
 from docmind.core.retrieval import reset_client
@@ -32,6 +33,7 @@ def app_settings(tmp_path):
     document_store._ingested = {}
     reset_client()
     session_store._sessions = {}
+    auth_router.limiter._storage.reset()
     return app
 
 
@@ -132,6 +134,37 @@ class TestProtectedEndpoints:
                 files={"file": ("test.pdf", sample_pdf_bytes, "application/pdf")},
             )
         assert resp.status_code == 201
+
+
+class TestSessionIsolation:
+    def test_user_b_cannot_hijack_user_a_session(self, app_settings, sample_pdf_bytes):
+        """User B supplying user A's session_id gets a fresh session."""
+        token_a = _token(app_settings, "admin")
+        token_b = _token(app_settings, "demo")
+
+        with TestClient(
+            app_settings, headers={"Authorization": f"Bearer {token_a}"}
+        ) as c_a:
+            resp = c_a.post(
+                "/api/ask",
+                json={"question": "Secret question?", "session_id": "target-session"},
+            )
+            assert resp.status_code == 200
+            assert resp.json()["session_id"] == "target-session"
+
+        with TestClient(
+            app_settings, headers={"Authorization": f"Bearer {token_b}"}
+        ) as c_b:
+            resp = c_b.post(
+                "/api/ask",
+                json={
+                    "question": "What did user A ask?",
+                    "session_id": "target-session",
+                },
+            )
+            assert resp.status_code == 200
+            # User B must NOT receive user A's session -- a fresh session is created
+            assert resp.json()["session_id"] != "target-session"
 
 
 class TestUserScopedDocumentIsolation:

@@ -27,5 +27,8 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    # Override DOCMIND_ADMIN_PASSWORD / DOCMIND_DEMO_PASSWORD in production.
+    admin_password: str = "docmind-admin"
+    demo_password: str = "demo1234"
 
     model_config = {"env_file": ".env", "env_prefix": "DOCMIND_"}
