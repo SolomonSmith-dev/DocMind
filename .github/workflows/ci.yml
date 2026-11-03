@@ -35,7 +35,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: python -m pip install --upgrade "pip>=26.1"
+      - run: python -m pip install --upgrade "pip>=26.1" "setuptools>=84.1"
       - run: pip install ".[dev]"
       - run: |
           pip-audit \
@@ -67,10 +67,16 @@ jobs:
             --ignore-vuln PYSEC-2025-217 \
             --ignore-vuln PYSEC-2025-218 \
             --ignore-vuln PYSEC-2025-216 \
-            --ignore-vuln PYSEC-2025-183
+            --ignore-vuln PYSEC-2025-183 \
+            --ignore-vuln PYSEC-2026-311 \
+            --ignore-vuln PYSEC-2026-3813 \
+            --ignore-vuln PYSEC-2026-3814 \
+            --ignore-vuln PYSEC-2026-3815
           # Unfixable CVEs (no patched releases as of 2026-05-20):
           # PYSEC-2025-183: PyJWT 2.12.1 (latest) -- no fix version available
           # PYSEC-2024-277: joblib (via sentence-transformers)
           # PYSEC-2025-14x/PYSEC-2026-10x: ollama Python client
           # PYSEC-2025-18x/19x/2xx + PYSEC-2026-139: torch (via sentence-transformers)
           # PYSEC-2025-21x: transformers (via sentence-transformers)
+          # PYSEC-2026-311/3813/3814/3815: chromadb 1.5.9 (latest) -- no fix version as of 2026-11-03
+          #   (Chroma server auth/RBAC and code-injection issues; re-check when chromadb > 1.5.9 ships)
