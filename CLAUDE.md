@@ -55,3 +55,7 @@ All config via `.env` with `DOCMIND_` prefix. Key vars: `DOCMIND_CHROMA_HOST`, `
 - All endpoints validated with Pydantic models
 - File uploads: magic bytes + MIME + size + filename sanitization
 - Document chunks are untrusted — delimiter-wrapped before LLM injection
+
+## ICM / Graphify
+
+When `graphify-out/graph.json` exists, answer codebase questions with `graphify query "<q>"` (also `path` / `explain`) before grep or explore agents. Rebuild with `graphify update` after large structural changes. Dual Develop: Hermes-first product build; Cursor for git/PR/evals/parallel. No secrets in commits or docs. Ops spine: `~/Projects/personal-tech-ops`.

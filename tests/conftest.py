@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from docmind.api import ask as ask_router
+from docmind.api import auth as auth_router
 from docmind.api import upload as upload_router
 from docmind.app import create_app
 from docmind.core.auth import create_access_token
@@ -32,6 +33,7 @@ def client(tmp_path):
     reset_client()
     # Reset module-level rate limiter storage to prevent cross-test 429s
     ask_router.limiter._storage.reset()
+    auth_router.limiter._storage.reset()
     upload_router.limiter._storage.reset()
     # Reset session store to prevent cross-test session bleed
     session_store._sessions = {}

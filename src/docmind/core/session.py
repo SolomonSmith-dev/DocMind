@@ -31,6 +31,7 @@ class Session:
     """A conversation session with a rolling history of turns."""
 
     id: str
+    user_id: str
     created_at: str
     turns: list[Turn] = field(default_factory=list)
 
@@ -48,9 +49,10 @@ class SessionStore:
     def __init__(self) -> None:
         self._sessions: dict[str, Session] = {}
 
-    def create(self) -> Session:
+    def create(self, user_id: str) -> Session:
         session = Session(
             id=str(uuid.uuid4()),
+            user_id=user_id,
             created_at=datetime.now(tz=UTC).isoformat(),
         )
         self._sessions[session.id] = session
@@ -59,22 +61,30 @@ class SessionStore:
     def get(self, session_id: str) -> Session | None:
         return self._sessions.get(session_id)
 
-    def get_or_create(self, session_id: str | None) -> Session:
+    def get_or_create(self, session_id: str | None, user_id: str) -> Session:
         """Return an existing session or create a new one.
 
         If session_id is None, always creates a new session.
-        If session_id refers to an unknown session, creates a new session
-        with that id (allows clients to name their own sessions).
+        If session_id refers to an unknown session, creates one with that id
+        (allows clients to name their own sessions).
+        If session_id belongs to a different user, silently creates a new
+        session -- prevents cross-user session hijacking without leaking
+        information about whose session the id belongs to.
         """
         if session_id is None:
-            return self.create()
-        if session_id not in self._sessions:
+            return self.create(user_id)
+        existing = self._sessions.get(session_id)
+        if existing is None:
             session = Session(
                 id=session_id,
+                user_id=user_id,
                 created_at=datetime.now(tz=UTC).isoformat(),
             )
             self._sessions[session_id] = session
-        return self._sessions[session_id]
+            return session
+        if existing.user_id != user_id:
+            return self.create(user_id)
+        return existing
 
 
 session_store = SessionStore()

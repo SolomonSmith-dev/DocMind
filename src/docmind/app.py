@@ -6,6 +6,7 @@ from slowapi.util import get_remote_address
 
 from docmind.api import ask, auth, health, query, upload
 from docmind.config import Settings
+from docmind.core.auth import build_users
 from docmind.logging import setup_logging
 from docmind.middleware import RequestIDMiddleware
 
@@ -20,6 +21,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title=settings.app_name, version="0.1.0")
     app.state.settings = settings
     app.state.limiter = limiter
+    app.state.users = build_users(settings.admin_password, settings.demo_password)
 
     # Exception handler for rate limit exceeded
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
