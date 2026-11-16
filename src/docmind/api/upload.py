@@ -73,7 +73,7 @@ async def upload_document(
         logger.error("ingestion_failed", doc_id=doc_id, error=str(e))
         raise HTTPException(status_code=422, detail="Failed to process document") from e
 
-    document_store.save(ingested)
+    document_store.save(ingested, owner_id=user_id)
 
     store_chunks(
         chunks=ingested.chunks,
@@ -102,9 +102,9 @@ async def upload_document(
 
 
 @router.get("/documents", response_model=list[DocumentInfo])
-async def list_documents():
-    """List all uploaded documents with metadata."""
-    docs = document_store.list_all()
+async def list_documents(user_id: str = Depends(get_current_user_id)):
+    """List the caller's own uploaded documents with metadata."""
+    docs = document_store.list_for_owner(user_id)
     return [
         DocumentInfo(
             document_id=d.doc_id,
