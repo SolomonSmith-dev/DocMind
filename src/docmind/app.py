@@ -5,7 +5,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from docmind.api import ask, auth, health, query, upload
-from docmind.config import Settings
+from docmind.config import Settings, check_boot_secrets
 from docmind.core.auth import build_users
 from docmind.logging import setup_logging
 from docmind.middleware import RequestIDMiddleware
@@ -13,6 +13,7 @@ from docmind.middleware import RequestIDMiddleware
 
 def create_app() -> FastAPI:
     settings = Settings()
+    check_boot_secrets(settings)
     setup_logging(debug=settings.debug)
 
     # Rate limiter — keyed by client IP

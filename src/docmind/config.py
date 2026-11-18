@@ -31,4 +31,32 @@ class Settings(BaseSettings):
     admin_password: str = "docmind-admin"
     demo_password: str = "demo1234"
 
+    # Set DOCMIND_ALLOW_INSECURE_DEFAULTS=true only for local dev and tests.
+    # Otherwise boot refuses the built-in secrets and passwords.
+    allow_insecure_defaults: bool = False
+
     model_config = {"env_file": ".env", "env_prefix": "DOCMIND_"}
+
+
+DEFAULT_JWT_SECRET = Settings.model_fields["jwt_secret_key"].default
+DEFAULT_ADMIN_PASSWORD = Settings.model_fields["admin_password"].default
+DEFAULT_DEMO_PASSWORD = Settings.model_fields["demo_password"].default
+
+
+def check_boot_secrets(settings: Settings) -> None:
+    """Refuse to start with the built-in JWT secret or default passwords."""
+    if settings.allow_insecure_defaults:
+        return
+    problems = []
+    if settings.jwt_secret_key == DEFAULT_JWT_SECRET:
+        problems.append("DOCMIND_JWT_SECRET_KEY")
+    if settings.admin_password == DEFAULT_ADMIN_PASSWORD:
+        problems.append("DOCMIND_ADMIN_PASSWORD")
+    if settings.demo_password == DEFAULT_DEMO_PASSWORD:
+        problems.append("DOCMIND_DEMO_PASSWORD")
+    if problems:
+        raise RuntimeError(
+            "Refusing to boot with default secrets: set "
+            + ", ".join(problems)
+            + " (or DOCMIND_ALLOW_INSECURE_DEFAULTS=true for local dev only)."
+        )

@@ -20,6 +20,7 @@ class DocumentRecord:
     total_pages: int
     chunk_count: int
     uploaded_at: str  # ISO format
+    owner_id: str = ""
 
 
 class DocumentStore:
@@ -29,13 +30,14 @@ class DocumentStore:
         self._documents: dict[str, DocumentRecord] = {}
         self._ingested: dict[str, IngestedDocument] = {}
 
-    def save(self, doc: IngestedDocument) -> DocumentRecord:
+    def save(self, doc: IngestedDocument, owner_id: str = "") -> DocumentRecord:
         record = DocumentRecord(
             doc_id=doc.doc_id,
             filename=doc.filename,
             total_pages=doc.total_pages,
             chunk_count=doc.chunk_count,
             uploaded_at=datetime.now(UTC).isoformat(),
+            owner_id=owner_id,
         )
         self._documents[doc.doc_id] = record
         self._ingested[doc.doc_id] = doc
@@ -49,6 +51,9 @@ class DocumentStore:
 
     def list_all(self) -> list[DocumentRecord]:
         return list(self._documents.values())
+
+    def list_for_owner(self, owner_id: str) -> list[DocumentRecord]:
+        return [r for r in self._documents.values() if r.owner_id == owner_id]
 
 
 # Singleton — shared across the app lifetime

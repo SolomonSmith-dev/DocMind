@@ -137,7 +137,7 @@ cd web && npm run test:e2e   # needs the API on :8000
 ## Security notes
 
 - **Uploads**: magic-byte detection (not the Content-Type header), MIME allowlist, DOCX verified as a ZIP containing `word/document.xml`, 25 MB cap, filename sanitization, UUID storage paths (`src/docmind/core/security.py`).
-- **Config**: everything via `DOCMIND_`-prefixed env vars; `.env` has been gitignored since the first commit. The default JWT secret is for development; set `DOCMIND_JWT_SECRET_KEY` anywhere else.
+- **Config**: everything via `DOCMIND_`-prefixed env vars; `.env` has been gitignored since the first commit. The app refuses to boot with the default JWT secret or default admin and demo passwords; set `DOCMIND_JWT_SECRET_KEY`, `DOCMIND_ADMIN_PASSWORD` and `DOCMIND_DEMO_PASSWORD`, or set `DOCMIND_ALLOW_INSECURE_DEFAULTS=true` for local dev only. `GET /api/documents` requires a token and returns only the caller's documents.
 - **Known gaps**: in-memory user and session stores, so a restart logs everyone out. Rate limits are keyed by client IP. The injection filter is regex-based and will not catch everything; it raises the cost of an attack, it does not end it.
 
 ## Roadmap
